@@ -59,5 +59,4 @@
   (define Q (fa-graph-states graph))
   (define d (fa-graph-transitions graph))
   (define F (filter nullable? Q))
-  ;;(mk-dfa Q sigma d start F))
-  (values Q sigma d start F))
+  (mk-dfa Q sigma d start F))
