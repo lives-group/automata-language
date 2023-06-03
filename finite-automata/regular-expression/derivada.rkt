@@ -1,5 +1,7 @@
 #lang racket
 
+(provide (all-defined-out))
+
 ;; Struct definitions
 
 (struct EMPTY () #:transparent)
@@ -20,6 +22,9 @@
 
 ;; Functions
 
+
+;; Nullability 
+
 (define (nullable? e)
   (match e
     [(EMPTY) #f]
@@ -31,10 +36,10 @@
     [(INTERSECTION r s) (and (nullable? r) (nullable? s))]
     [(COMPLEMENT r) (not (nullable? r))]))
 
-
 (define (v e)
   (if (nullable? e) (LAMBDA) (EMPTY)))
 
+;; Helper functions for regex simplification
 
 (define (or-regex r s)
   (match (cons r s)
@@ -56,8 +61,7 @@
     [(cons _ (LAMBDA)) r]
     [any (CONCATENATION r s)]))
 
-
-;; Como fazer com que a seja uma estrutura SYMBOL
+;; Derivada
 
 (define (derivative a e)
   (match e
@@ -72,16 +76,34 @@
     [(INTERSECTION r s) (inter-regex (derivative a r) (derivative a s))]
     [(COMPLEMENT r) (COMPLEMENT (derivative a r))]))
 
+;; Extended derivative
 
-;; a string vai ser uma lista de caracteres
 (define (string-derivative char-list regex)
-  ;(display "1\n")
   (match (cons char-list regex)
     [(cons (list) _) (nullable? regex)]
     [(cons _ (EMPTY)) #f]
     [any (string-derivative (rest char-list) (derivative (first char-list) regex))]))
+
+;; Regex equivalence
+
+(define (equivalent? r s)
+  (match (cons r s)
+    [(cons (LAMBDA) (LAMBDA)) #t]
+    [(cons (EMPTY) (EMPTY)) #t]
+    [(cons (SYMBOL a) (SYMBOL b)) (char=? a b)]
+    [(cons (CONCATENATION a b) (CONCATENATION c d)) (and (equivalent? a c) (equivalent? b d))]
+    [(cons (KLEENE-CLOSURE a) (KLEENE-CLOSURE b)) (equivalent? a b)]
+    [(cons (UNION a b) (UNION c d)) (or
+                                     (and (equivalent? a c) (equivalent? b d))
+                                     (and (equivalent? a d) (equivalent? b c)))]
+    [(cons (INTERSECTION a b) (INTERSECTION c d)) (or
+                                                   (and (equivalent? a c) (equivalent? b d))
+                                                   (and (equivalent? a d) (equivalent? b c)))]
+    [(cons (COMPLEMENT a) (COMPLEMENT b)) (equivalent? a b)]
+    [any #f]))
   
 
+;; Tests
 
 (module+ test
   (require rackunit)
@@ -155,5 +177,15 @@
 
   
   ;; test string-derivative
+
+  (check-true (string-derivative (string->list "00111") (CONCATENATION (KLEENE-CLOSURE zero) (KLEENE-CLOSURE um))))
+  (check-false (string-derivative (string->list "00111") (CONCATENATION (KLEENE-CLOSURE um) (KLEENE-CLOSURE zero))))
+  (check-true (string-derivative (string->list "ab") (UNION (CONCATENATION a b) (CONCATENATION a c))))
+  (check-true (string-derivative (string->list "ac") (UNION (CONCATENATION a b) (CONCATENATION a c))))
+  (check-false (string-derivative (string->list "aa") (UNION (CONCATENATION a b) (CONCATENATION a c))))
+  (check-false (string-derivative (string->list "a") (UNION (CONCATENATION a b) (CONCATENATION a c))))
+  (check-true (string-derivative (string->list "1111111111111") (KLEENE-CLOSURE um)))
+  (check-true (string-derivative (string->list "") (KLEENE-CLOSURE um)))
+  (check-false (string-derivative (string->list "0") (KLEENE-CLOSURE um)))
 
   "All tests run")
