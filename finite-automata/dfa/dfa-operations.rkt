@@ -135,26 +135,33 @@
         (filter symbol? reachable-states-variable))))
 
 
+(define (remove-unreachable-states states final-states)
+  (filter
+   (lambda (s)
+     (if (member s states)
+         s
+         #f)) final-states))
+
 ; generate a intersection of two dfas
 (define (mk-intersection-dfa dfa1 dfa2)
   (define start (product-start dfa1 dfa2))
   (define sigma (dfa-sigma dfa1))
-  (define final (dfa-intersection-states dfa1 dfa2))
   (define aux-delta (dfa-product dfa1 dfa2))
   (define states 
     (reachable-states aux-delta (list start)))
   (define delta (reachable-transitions states aux-delta))
+  (define final (remove-unreachable-states states (dfa-intersection-states dfa1 dfa2)))
   (mk-dfa states sigma delta start final))
 
 ; generate a intersection of two dfas
 (define (mk-union-dfa dfa1 dfa2)
   (define start (product-start dfa1 dfa2))
   (define sigma (dfa-sigma dfa1))
-  (define final (dfa-union-states dfa1 dfa2))
   (define aux-delta (dfa-product dfa1 dfa2))
   (define states 
     (reachable-states aux-delta (list start)))
   (define delta (reachable-transitions states aux-delta))
+  (define final (remove-unreachable-states states (dfa-union-states dfa1 dfa2)))
   (mk-dfa states sigma delta start final))
 
 
