@@ -19,6 +19,7 @@
 ;; Close the input port after reading
 (close-input-port input-port)
 
+;; Transform transitions from json to the expected data structure
 (define (transform-json-delta transitions)
   (map (lambda (t)
       (cons 
@@ -29,6 +30,7 @@
             (hash-ref t 'symbol)))  
         (string->symbol (hash-ref t 'destiny-state)))) transitions))
 
+;; Create an automaton based on the json read
 (define (mk-automato-json json-data)
   (define states (map string->symbol (hash-ref json-data 'states)))
   (define start 
@@ -42,15 +44,22 @@
     (mk-dfa states sigma delta start final)
     (mk-nfa states sigma delta start final)))
 
-(define (mk-list-answer json-data)
+;; Create a list of pairs that contains answer and feedback
+(define (mk-pairs-answer json-data)
   (map (lambda (automato)
-    (mk-automato-json (hash-ref automato 'answer))) json-data))
+    (cons (cons 
+        (mk-automato-json (hash-ref automato 'answer))
+        (mk-automato-json (hash-ref automato 'feedback)))
+      (hash-ref automato 'question))) json-data))
 
-(define (mk-list-feedback json-data)
-  (map (lambda (automato)
-    (mk-automato-json (hash-ref automato 'feedback))) json-data))
+;; Run the correction algorithm to all answers in the json
+(define (run-answers-batch json-data)
+  (define pairs-answer (mk-pairs-answer json-data))
+  (map (lambda (pair)
+    (displayln 
+      (string-append "\n" (cdr pair)))
+    (automaton-correction 
+        (car (car pair))
+        (cdr (car pair)))) pairs-answer))
 
-
-(mk-list-answer json-data)
-(mk-list-feedback json-data)
-
+(run-answers-batch json-data)

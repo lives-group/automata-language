@@ -49,21 +49,9 @@
     (bfs graph (dfa-start dfa)))
   (acceptance-words predecessors (dfa-final dfa) graph))
 
-(define (display-correction dfa1 dfa2)
-  (if (not (empty? (dfa-final dfa1)))
-    (format "~a: ~a" "Your atomaton is accepting a word(s) that it should not" (find-acceptance-words dfa1))
-    empty)
-  (if (not (empty? (dfa-final dfa2)))
-    (format "~a: ~a" "Your automaton is not accepting word(s) that it should" (find-acceptance-words dfa2))
-    empty)
-  (if (and (empty? (dfa-final dfa1)) (empty? (dfa-final dfa2)))
-    (displayln "Your automaton accept the same words of the feedback")
-    empty)
-  )
-
 (define (automaton-correction answer feedback)
-  (define dfa1 (minimize (automaton-difference answer feedback)))
-  (define dfa2 (minimize (automaton-difference feedback answer)))
+  (define dfa1 (automaton-difference answer feedback))
+  (define dfa2 (automaton-difference feedback answer))
   (cond
     [(and 
       (not (empty? (dfa-final dfa1))) 

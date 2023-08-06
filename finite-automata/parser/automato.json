@@ -1,5 +1,6 @@
 [
     {
+        "question": "question1",
         "answer": {
             "type": "dfa",
             "states": ["A", "B", "C", "D"],
@@ -95,6 +96,102 @@
                     "origin-state": "D",
                     "destiny-state": "C",
                     "symbol": 1
+                }
+            ]
+        }
+    },
+    {
+        "question": "question2",
+        "answer": {
+            "type": "dfa",
+            "states": ["A", "B", "C", "D"],
+            "start": "A",
+            "final": ["B", "D"],
+            "sigma": [0, 1],
+            "delta": [
+                {
+                    "origin-state": "A",
+                    "destiny-state": "C",
+                    "symbol": 0
+                },
+                {
+                    "origin-state": "A",
+                    "destiny-state": "B",
+                    "symbol": 1
+                },
+                {
+                    "origin-state": "B",
+                    "destiny-state": "D",
+                    "symbol": 0
+                },
+                {
+                    "origin-state": "B",
+                    "destiny-state": "A",
+                    "symbol": 1
+                },
+                {
+                    "origin-state": "C",
+                    "destiny-state": "D",
+                    "symbol": 1
+                },
+                {
+                    "origin-state": "C",
+                    "destiny-state": "A",
+                    "symbol": 0
+                },
+                {
+                    "origin-state": "D",
+                    "destiny-state": "B",
+                    "symbol": 0
+                },
+                {
+                    "origin-state": "D",
+                    "destiny-state": "C",
+                    "symbol": 1
+                }
+            ]
+        },
+        "feedback": {
+            "type": "dfa",
+            "states": ["p1", "p2", "p3", "p4"],
+            "start": "p1",
+            "final": ["p4"],
+            "sigma": [0, 1],
+            "delta": [
+                {
+                    "origin-state": "p1",
+                    "destiny-state": "p2",
+                    "symbol": 0
+                },
+                {
+                    "origin-state": "p1",
+                    "destiny-state": "p1",
+                    "symbol": 1
+                },
+                {
+                    "origin-state": "p2",
+                    "destiny-state": "p3",
+                    "symbol": 0
+                },
+                {
+                    "origin-state": "p2",
+                    "destiny-state": "p2",
+                    "symbol": 1
+                },
+                {
+                    "origin-state": "p3",
+                    "destiny-state": "p3",
+                    "symbol": 1
+                },
+                {
+                    "origin-state": "p3",
+                    "destiny-state": "p4",
+                    "symbol": 0
+                },
+                {
+                    "origin-state": "p4",
+                    "destiny-state": "p3",
+                    "symbol": 0
                 }
             ]
         }
