@@ -50,10 +50,7 @@
   (map (lambda (automato)
     (mk-automato-json (hash-ref automato 'feedback))) json-data))
 
-;;; (transform-json-delta (hash-ref (hash-ref json-data 'answer) 'delta))
-;;; (mk-automato-json (hash-ref json-data 'answer))
 
 (mk-list-answer json-data)
 (mk-list-feedback json-data)
-;;; (mk-list-answer json-data)
 
