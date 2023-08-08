@@ -14,22 +14,22 @@
 (struct COMPLEMENT (r) #:transparent)
 
 ;; TODO: remover depois
-(define um (SYMBOL #\1))
+(define um1 (SYMBOL #\1))
 (define zero (SYMBOL #\0))
 (define a (SYMBOL #\a))
 (define b (SYMBOL #\b))
 (define c (SYMBOL #\c))
 
-(define RE (CONCATENATION (KLEENE-CLOSURE (UNION zero um)) (CONCATENATION um um)))
-(define RE1 (CONCATENATION (KLEENE-CLOSURE zero) (KLEENE-CLOSURE um)))
+(define RE (CONCATENATION (KLEENE-CLOSURE (UNION zero um1)) (CONCATENATION um1 um1)))
+(define RE1 (CONCATENATION (KLEENE-CLOSURE zero) (KLEENE-CLOSURE um1)))
 (define RE2 (UNION (CONCATENATION a b) (CONCATENATION a c)))
-(define RE3 (UNION (UNION um zero) (UNION a b)))
+(define RE3 (UNION (UNION um1 zero) (UNION a b)))
 (define RE4 (UNION
              (UNION
               (CONCATENATION
                (CONCATENATION a b)
                (CONCATENATION c c))
-              (UNION zero um))
+              (UNION zero um1))
              (UNION
               (INTERSECTION (KLEENE-CLOSURE (KLEENE-CLOSURE a))
                             (CONCATENATION a (KLEENE-CLOSURE a)))
@@ -68,7 +68,7 @@
     [(cons (EMPTY) _) s]
     [(cons _ (EMPTY)) r]
     [(cons (LAMBDA) e) (if (nullable? e) e (UNION r s))]
-    [(cons e (LAMBDA)) (if (nullable? e) e (UNION r s))]    
+    [(cons e (LAMBDA)) (if (nullable? e) e (UNION r s))]
     [any (if (equivalent? r s)
              r
              (UNION r s))]))
@@ -104,6 +104,7 @@
     [(COMPLEMENT e) e]
     [any (COMPLEMENT r)]))
 
+
 ;; Derivada
 
 (define (derivative a e)
@@ -117,7 +118,7 @@
     [(KLEENE-CLOSURE r) (concat-regex (derivative a r) e)]
     [(UNION r s) (union-regex (derivative a r) (derivative a s))]
     [(INTERSECTION r s) (inter-regex (derivative a r) (derivative a s))]
-    [(COMPLEMENT r) (COMPLEMENT (derivative a r))]))
+    [(COMPLEMENT r) (complement-regex (derivative a r))]))
 
 ;; Extended derivative
 
@@ -126,6 +127,7 @@
     [(cons (list) _) (nullable? regex)]
     [(cons _ (EMPTY)) #f]
     [any (string-derivative (rest char-list) (derivative (first char-list) regex))]))
+
 
 ;; Regex equivalence
 
@@ -155,6 +157,7 @@
     [(UNION r s) (append (union-to-list r) (union-to-list s))]
     [any (list e)]))
 
+#;
 (define (simplify-union r)
   (define s (remove* (list (EMPTY)) r))
   (match (length s)
@@ -174,6 +177,7 @@
     [(INTERSECTION r s) (append (inter-to-list r) (inter-to-list s))]
     [any (list e)]))
 
+#;
 (define (simplify-inter r)
   (if (member (EMPTY) r)
       (list (EMPTY))
@@ -192,6 +196,7 @@
     [(CONCATENATION r s) (append (concat-to-list r) (concat-to-list s))]
     [any (list e)]))
 
+#;
 (define (simplify-concat r)
   (if (member (EMPTY) r)
       (list (EMPTY))
@@ -251,15 +256,19 @@
                           (map rewrite-re
                                 (concat-to-list e)))]
     [(UNION r s) (list-to-union
-                  (sort
-                   (map rewrite-re
-                        (union-to-list e))
-                   regex-smaller?))]
+                  (remove-duplicates
+                   (sort
+                    (map rewrite-re
+                         (union-to-list e))
+                    regex-smaller?)
+                   equivalent?))]
     [(INTERSECTION r s) (list-to-inter
-                         (sort
-                          (map rewrite-re
-                               (inter-to-list e))
-                          regex-smaller?))]
+                         (remove-duplicates
+                          (sort
+                           (map rewrite-re
+                                (inter-to-list e))
+                           regex-smaller?)
+                          equivalent?))]
     [(KLEENE-CLOSURE r) (kleene-regex (rewrite-re r))]
     [(COMPLEMENT r) (complement-regex (rewrite-re r))]))
 
@@ -328,22 +337,31 @@
 
 
 ;; printando regex
-(define (pprint-regex e)
+(define open "(")
+(define close ")")
+
+(define (re-to-string e)
   (match e
-    [(EMPTY) (display "∅")]
-    [(LAMBDA) (display "λ")]
-    [(SYMBOL a) (display a)]
-    [(CONCATENATION r s) (display "(")
-                         (pprint-regex r) (pprint-regex s)
-                         (display ")")]
-    [(KLEENE-CLOSURE r) (display "(") (pprint-regex r) (display ")*")]
-    [(COMPLEMENT r) (display "¬(") (pprint-regex r) (display ")")]
-    [(UNION r s) (display "(")
-                 (pprint-regex r) (display " + ") (pprint-regex s)
-                 (display ")")]
-    [(INTERSECTION r s) (display "(")
-                        (pprint-regex r) (display " ∩ ") (pprint-regex s)
-                        (display ")")]))
+    [(EMPTY) "∅"]
+    [(LAMBDA) "λ"]
+    [(SYMBOL a) (string a)]
+    [(CONCATENATION r s) (string-append open (re-to-string r) close
+                                        open (re-to-string s) close)]
+    [(KLEENE-CLOSURE r) (string-append open
+                                       (re-to-string r)
+                                       close "*")]
+    [(COMPLEMENT r) (string-append "¬" open
+                                   (re-to-string r)
+                                   close)]
+    [(UNION r s) (string-append open (re-to-string r) close
+                                " + "
+                                open (re-to-string s) close)]
+    [(INTERSECTION r s) (string-append open (re-to-string r) close
+                                       " & "
+                                       open (re-to-string s) close)]))
+
+(define (pprint-re re)
+  (display (string-append (re-to-string re) "\n")))
 
 
 
@@ -427,14 +445,14 @@
   
   ;; test string-derivative
 
-  (check-true (string-derivative (string->list "00111") (CONCATENATION (KLEENE-CLOSURE zero) (KLEENE-CLOSURE um))))
-  (check-false (string-derivative (string->list "00111") (CONCATENATION (KLEENE-CLOSURE um) (KLEENE-CLOSURE zero))))
+  (check-true (string-derivative (string->list "00111") (CONCATENATION (KLEENE-CLOSURE zero) (KLEENE-CLOSURE um1))))
+  (check-false (string-derivative (string->list "00111") (CONCATENATION (KLEENE-CLOSURE um1) (KLEENE-CLOSURE zero))))
   (check-true (string-derivative (string->list "ab") (UNION (CONCATENATION a b) (CONCATENATION a c))))
   (check-true (string-derivative (string->list "ac") (UNION (CONCATENATION a b) (CONCATENATION a c))))
   (check-false (string-derivative (string->list "aa") (UNION (CONCATENATION a b) (CONCATENATION a c))))
   (check-false (string-derivative (string->list "a") (UNION (CONCATENATION a b) (CONCATENATION a c))))
-  (check-true (string-derivative (string->list "1111111111111") (KLEENE-CLOSURE um)))
-  (check-true (string-derivative (string->list "") (KLEENE-CLOSURE um)))
-  (check-false (string-derivative (string->list "0") (KLEENE-CLOSURE um)))
+  (check-true (string-derivative (string->list "1111111111111") (KLEENE-CLOSURE um1)))
+  (check-true (string-derivative (string->list "") (KLEENE-CLOSURE um1)))
+  (check-false (string-derivative (string->list "0") (KLEENE-CLOSURE um1)))
 
   "All tests run")
