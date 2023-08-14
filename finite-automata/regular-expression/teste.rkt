@@ -6,7 +6,8 @@
          latex-utils/scribble/utils
          "re.rkt"
          "re-generator.rkt"
-         "re-to-dfa.rkt")
+         "re-to-dfa.rkt"
+         "../dfa/image-builder.rkt")
 
 ;ab*(00|10)*
 (define RE (CONCATENATION
