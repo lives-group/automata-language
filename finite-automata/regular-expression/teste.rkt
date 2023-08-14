@@ -18,6 +18,12 @@
                               (CONCATENATION zero zero)
                               (CONCATENATION um1 zero))))))
 
+(define RE1 (CONCATENATION
+             (UNION (SYMBOL #\0) (COMPLEMENT (SYMBOL #\b)))
+             (CONCATENATION
+              (UNION (SYMBOL #\b) (LAMBDA))
+              (UNION (SYMBOL #\a) (SYMBOL #\c)))))
+
 
 (define (new-re max-length)
   (first (sample (gen:re max-length) 1)))

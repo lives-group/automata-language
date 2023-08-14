@@ -44,8 +44,8 @@
 (define (mk-transition sigma q c graph)
   (define qc (rewrite-re (derivative c q)))
   (if (state-exists qc graph)
-      (add-transition (list q c qc) graph)
-      (let ([graph-n (add-transition (list q c qc) (add-state qc graph))])
+      (add-transition (cons (cons q c) qc) graph)
+      (let ([graph-n (add-transition (cons (cons q c) qc) (add-state qc graph))])
         (mk-graph sigma graph-n qc))))
 
 (define (mk-graph sigma graph q)
@@ -110,10 +110,10 @@
 
   (define Q2 (map (curry hash-ref table) Q))
   (define d2 (map
-              (lambda (t) (list
-                           (hash-ref table (first t))
-                           (second t)
-                           (hash-ref table (third t))))
+              (lambda (t) (cons
+                           (cons (hash-ref table (car (car t)))
+                                 (cdr (car t)))
+                           (hash-ref table (cdr t))))
               d))
   (define start2 (hash-ref table start))
   (define F2 (map (curry hash-ref table) F))
@@ -138,29 +138,27 @@
                   (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA))))
                  '(#\1 #\0)
                  (list
-                  (list
-                   (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1)))
-                   #\1
+                  (cons
+                   (cons (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) #\1)
                    (UNION (SYMBOL #\1) (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1)))))
-                  (list
-                   (UNION (SYMBOL #\1) (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))))
-                   #\1
+                  (cons
+                   (cons (UNION (SYMBOL #\1) (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1)))) #\1)
                    (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA))))
-                  (list
-                   (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA)))
-                   #\1
+                  (cons
+                   (cons
+                    (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA)))
+                    #\1)
                    (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA))))
-                  (list
-                   (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA)))
-                   #\0
+                  (cons
+                   (cons
+                    (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA)))
+                    #\0)
                    (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))))
-                  (list
-                   (UNION (SYMBOL #\1) (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))))
-                   #\0
+                  (cons
+                   (cons (UNION (SYMBOL #\1) (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1)))) #\0)
                    (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))))
-                  (list
-                   (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1)))
-                   #\0
+                  (cons
+                   (cons (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) #\0)
                    (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1)))))
                  (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1)))
                  (list (UNION (SYMBOL #\1) (UNION (CONCATENATION (KLEENE-CLOSURE (UNION (SYMBOL #\0) (SYMBOL #\1))) (CONCATENATION (SYMBOL #\1) (SYMBOL #\1))) (LAMBDA))))))
@@ -171,18 +169,18 @@
                  (list (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c))) (EMPTY) (UNION (SYMBOL #\b) (SYMBOL #\c)) (LAMBDA))
                  '(#\c #\b #\a)
                  (list
-                  (list (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c))) #\c (EMPTY))
-                  (list (EMPTY) #\c (EMPTY))
-                  (list (EMPTY) #\b (EMPTY))
-                  (list (EMPTY) #\a (EMPTY))
-                  (list (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c))) #\b (EMPTY))
-                  (list (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c))) #\a (UNION (SYMBOL #\b) (SYMBOL #\c)))
-                  (list (UNION (SYMBOL #\b) (SYMBOL #\c)) #\c (LAMBDA))
-                  (list (LAMBDA) #\c (EMPTY))
-                  (list (LAMBDA) #\b (EMPTY))
-                  (list (LAMBDA) #\a (EMPTY))
-                  (list (UNION (SYMBOL #\b) (SYMBOL #\c)) #\b (LAMBDA))
-                  (list (UNION (SYMBOL #\b) (SYMBOL #\c)) #\a (EMPTY)))
+                  (cons (cons (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c))) #\c) (EMPTY))
+                  (cons (cons (EMPTY) #\c) (EMPTY))
+                  (cons (cons (EMPTY) #\b) (EMPTY))
+                  (cons (cons (EMPTY) #\a) (EMPTY))
+                  (cons (cons (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c))) #\b) (EMPTY))
+                  (cons (cons (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c))) #\a) (UNION (SYMBOL #\b) (SYMBOL #\c)))
+                  (cons (cons (UNION (SYMBOL #\b) (SYMBOL #\c)) #\c) (LAMBDA))
+                  (cons (cons (LAMBDA) #\c) (EMPTY))
+                  (cons (cons (LAMBDA) #\b) (EMPTY))
+                  (cons (cons (LAMBDA) #\a) (EMPTY))
+                  (cons (cons (UNION (SYMBOL #\b) (SYMBOL #\c)) #\b) (LAMBDA))
+                  (cons (cons (UNION (SYMBOL #\b) (SYMBOL #\c)) #\a) (EMPTY)))
                  (UNION (CONCATENATION (SYMBOL #\a) (SYMBOL #\b)) (CONCATENATION (SYMBOL #\a) (SYMBOL #\c)))
                  (list (LAMBDA))))
   
