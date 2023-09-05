@@ -4,10 +4,7 @@
 ;; algorithm using a fixpoint computation
 
 (provide refinement-table
-         minimize
-         minimization
-         revert-dfa
-         revert-delta)
+         minimize)
 
 (require "../fa.rkt"
          "core.rkt"

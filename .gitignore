@@ -1,4 +1,5 @@
 doc
 compiled
+finite-automata/*/*.rkt~
 finite-automata/*/compiled
 fin-automata/compiled
