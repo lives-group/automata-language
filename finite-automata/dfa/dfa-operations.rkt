@@ -10,24 +10,6 @@
          mk-intersection-dfa
          complement)
 
-(define M
-  (dfa A (B)
-       (A : 0 -> B)
-       (B : 1 -> B)
-       (B : 0 -> B)))
-
-
-
-(define N
-  (dfa C (D)
-       (C : 0 -> C)
-       (C : 1 -> D)
-       (D : 0 -> C)
-       (D : 1 -> D)))
-
-(dfa->pict N)
-
-;(dfa->pict N)
 
 ; generate a list with the initial states of dfa
 (define (product-start dfa1 dfa2)
@@ -153,26 +135,33 @@
         (filter symbol? reachable-states-variable))))
 
 
+(define (remove-unreachable-states states final-states)
+  (filter
+   (lambda (s)
+     (if (member s states)
+         s
+         #f)) final-states))
+
 ; generate a intersection of two dfas
 (define (mk-intersection-dfa dfa1 dfa2)
   (define start (product-start dfa1 dfa2))
   (define sigma (dfa-sigma dfa1))
-  (define final (dfa-intersection-states dfa1 dfa2))
   (define aux-delta (dfa-product dfa1 dfa2))
   (define states 
     (reachable-states aux-delta (list start)))
   (define delta (reachable-transitions states aux-delta))
+  (define final (remove-unreachable-states states (dfa-intersection-states dfa1 dfa2)))
   (mk-dfa states sigma delta start final))
 
 ; generate a intersection of two dfas
 (define (mk-union-dfa dfa1 dfa2)
   (define start (product-start dfa1 dfa2))
   (define sigma (dfa-sigma dfa1))
-  (define final (dfa-union-states dfa1 dfa2))
   (define aux-delta (dfa-product dfa1 dfa2))
   (define states 
     (reachable-states aux-delta (list start)))
   (define delta (reachable-transitions states aux-delta))
+  (define final (remove-unreachable-states states (dfa-union-states dfa1 dfa2)))
   (mk-dfa states sigma delta start final))
 
 
@@ -183,41 +172,3 @@
           (dfa-delta dfa)
           (dfa-start dfa)
           new-final))
-
-(define T
-  (dfa A (B C) (A : 0 -> C)
-       (A : 1 -> B)
-       (B : 0 -> D)
-       (B : 1 -> A)
-       (C : 1 -> D)
-       (C : 0 -> A)
-       (D : 0 -> B)
-       (D : 1 -> C)))
-
-(define A
-  (dfa C (C E)
-       (C : 0 -> D)
-       (C : 1 -> C)
-       (D : 0 -> E)
-       (D : 1 -> D)
-       (E : 1 -> E)
-       (E : 0 -> D)))
-
-
-(define G
-  (dfa A (A)
-       (A : 1 -> A)
-       (A : 0 -> B)
-       (B : 0 -> A)
-       (B : 1 -> B)))
-
-(define P
-  (dfa p1 (p4)
-       (p1 : 0 -> p2)
-       (p1 : 1 -> p1)
-       (p2 : 0 -> p3)
-       (p2 : 1 -> p2)
-       (p3 : 1 -> p3)
-       (p3 : 0 -> p4)
-       (p4 : 1 -> p4)
-       (p4 : 0 -> p3)))
