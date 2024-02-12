@@ -6,7 +6,8 @@
 
 (provide re-to-dfa
          re-sigma-to-dfa
-         dfa-rename-states)
+         dfa-rename-states
+         dfa-states->symbol)
 
 ;; Definição usadas nos testes
 
@@ -34,17 +35,24 @@
   (let ([Q (fa-graph-states graph)]
         [d (fa-graph-transitions graph)])
     (fa-graph Q (append d (list t)))))
-
+#;
 (define (state-exists q graph)
   (ormap (curry equivalent? q) (fa-graph-states graph)))
+
+(define (state-exists q graph)
+  (define has-equivalent (member q (fa-graph-states graph) equivalent?))
+  (if has-equivalent
+      (first has-equivalent)
+      #f))
 
 
 ;; Mutually recursive functions to create the automata
 
 (define (mk-transition sigma q c graph)
   (define qc (rewrite-re (derivative c q)))
-  (if (state-exists qc graph)
-      (add-transition (cons (cons q c) qc) graph)
+  (define equivalent-qc (state-exists qc graph))
+  (if equivalent-qc
+      (add-transition (cons (cons q c) equivalent-qc) graph)
       (let ([graph-n (add-transition (cons (cons q c) qc) (add-state qc graph))])
         (mk-graph sigma graph-n qc))))
 
@@ -66,20 +74,6 @@
   (define d (fa-graph-transitions graph))
   (define F (filter nullable? Q))
   (mk-dfa2 Q sigma d start F))
-
-
-;; get alphabet from a regular expression
-
-(define (get-alphabet re)
-  (match re
-    [(EMPTY) (list)]
-    [(LAMBDA) (list)]
-    [(SYMBOL a) (list a)]
-    [(CONCATENATION r s) (set-union (get-alphabet r) (get-alphabet s))]
-    [(KLEENE-CLOSURE r) (get-alphabet r)]
-    [(UNION r s) (set-union (get-alphabet r) (get-alphabet s))]
-    [(INTERSECTION r s) (set-union (get-alphabet r) (get-alphabet s))]
-    [(COMPLEMENT r) (get-alphabet r)]))
 
 
 ;; Construct a DFA from a regular expression
@@ -121,6 +115,26 @@
   (define dfa2 (mk-dfa2 Q2 sigma d2 start2 F2))
 
   (list dfa2 table))
+
+(define (dfa-states->symbol dfa)
+  (define Q     (dfa-states dfa))
+  (define sigma (dfa-sigma dfa))
+  (define d     (dfa-delta dfa))
+  (define start (dfa-start dfa))
+  (define F     (dfa-final dfa))
+  
+
+  (define Q2 (map (compose string->symbol re->string) Q))
+  (define d2 (map
+              (lambda (t) (cons
+                           (cons ((compose string->symbol re->string) (car (car t)))
+                                 (cdr (car t)))
+                           ((compose string->symbol re->string) (cdr t))))
+              d))
+  (define start2 ((compose string->symbol re->string) start))
+  (define F2 (map (compose string->symbol re->string) F))
+  
+  (mk-dfa2 Q2 sigma d2 start2 F2))
 
 
 

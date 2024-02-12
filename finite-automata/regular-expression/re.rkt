@@ -40,9 +40,24 @@
 (define RE5 (INTERSECTION
              (INTERSECTION c b)
              (INTERSECTION a b)))
+(define RE6 (UNION (CONCATENATION a a) b))
 
 
 ;; Functions
+
+
+;; get alphabet from a regular expression
+
+(define (get-alphabet re)
+  (match re
+    [(EMPTY) (list)]
+    [(LAMBDA) (list)]
+    [(SYMBOL a) (list a)]
+    [(CONCATENATION r s) (set-union (get-alphabet r) (get-alphabet s))]
+    [(KLEENE-CLOSURE r) (get-alphabet r)]
+    [(UNION r s) (set-union (get-alphabet r) (get-alphabet s))]
+    [(INTERSECTION r s) (set-union (get-alphabet r) (get-alphabet s))]
+    [(COMPLEMENT r) (get-alphabet r)]))
 
 
 ;; Nullability 
@@ -120,6 +135,7 @@
     [(INTERSECTION r s) (inter-regex (derivative a r) (derivative a s))]
     [(COMPLEMENT r) (complement-regex (derivative a r))]))
 
+
 ;; Extended derivative
 
 (define (string-derivative char-list regex)
@@ -127,6 +143,50 @@
     [(cons (list) _) (nullable? regex)]
     [(cons _ (EMPTY)) #f]
     [any (string-derivative (rest char-list) (derivative (first char-list) regex))]))
+
+
+;; Derivada parcial
+
+(define (list-inter l)
+  (match l
+    [(list) l]
+    [(list r) l]
+    [(list r s) (inter-regex r s)]
+    [(cons x xs) (inter-regex x (list-to-inter xs))]))
+
+(define (set-concat R e)
+  (map (curryr concat-regex e) R))
+
+(define (set-inter R S)
+  (map list-inter (cartesian-product R S)))
+
+(define (set-complement R)
+  (define R-complement (list-inter (map complement-regex R)))
+  (if (list? R-complement)
+      R-complement
+      (list R-complement)))
+
+(define (partial-derivative a e)
+  (match e
+    [(EMPTY) (list)]
+    [(LAMBDA) (list)]
+    [(SYMBOL b) (if (char=? a b) (list (LAMBDA)) (list))]
+    [(CONCATENATION r s) (set-union 
+                          (set-concat (partial-derivative a r) s) 
+                          (if (nullable? r)
+                              (partial-derivative a s)
+                              (list)))]
+    [(KLEENE-CLOSURE r) (set-concat (partial-derivative a r) e)]
+    [(UNION r s) (set-union (partial-derivative a r) (partial-derivative a s))]
+    [(INTERSECTION r s) (set-inter (partial-derivative a r) (partial-derivative a s))]
+    [(COMPLEMENT r) (set-complement (partial-derivative a r))]))
+
+
+(define (string-partial-derivative char-list regexes)
+  (match (cons char-list regexes)
+    [(cons (list) _) (ormap nullable? (flatten regexes))]
+    [any (string-partial-derivative (rest char-list) (map (curry partial-derivative (first char-list)) (flatten regexes)))]))
+
 
 
 ;; Regex equivalence
@@ -254,7 +314,7 @@
     [(SYMBOL a) (SYMBOL a)]
     [(CONCATENATION r s) (list-to-concat
                           (map rewrite-re
-                                (concat-to-list e)))]
+                               (concat-to-list e)))]
     [(UNION r s) (list-to-union
                   (remove-duplicates
                    (sort
@@ -340,28 +400,34 @@
 (define open "(")
 (define close ")")
 
-(define (re-to-string e)
+(define (concat->string e)
+  (match e
+    [(CONCATENATION r s) (string-append (concat->string r) (concat->string s))]
+    [any (re->string e)]))
+
+(define (union->string e)
+  (match e
+    [(UNION r s) (string-append (union->string r) " + " (union->string s))]
+    [any (re->string e)]))
+
+(define (inter->string e)
+  (match e
+    [(INTERSECTION r s) (string-append (inter->string r) " & " (inter->string s))]
+    [any (re->string e)]))
+
+(define (re->string e)
   (match e
     [(EMPTY) "∅"]
     [(LAMBDA) "λ"]
     [(SYMBOL a) (string a)]
-    [(CONCATENATION r s) (string-append open (re-to-string r) close
-                                        open (re-to-string s) close)]
-    [(KLEENE-CLOSURE r) (string-append open
-                                       (re-to-string r)
-                                       close "*")]
-    [(COMPLEMENT r) (string-append "¬" open
-                                   (re-to-string r)
-                                   close)]
-    [(UNION r s) (string-append open (re-to-string r) close
-                                " + "
-                                open (re-to-string s) close)]
-    [(INTERSECTION r s) (string-append open (re-to-string r) close
-                                       " & "
-                                       open (re-to-string s) close)]))
+    [(CONCATENATION r s) (concat->string e)]
+    [(KLEENE-CLOSURE r) (string-append open (re->string r) close "*")]
+    [(COMPLEMENT r) (string-append "¬" open (re->string r) close)]
+    [(UNION r s) (string-append open (union->string e) close)]
+    [(INTERSECTION r s) (string-append open (inter->string e) close)]))
 
 (define (pprint-re re)
-  (display (string-append (re-to-string re) "\n")))
+  (display (string-append (re->string re) "\n")))
 
 
 
