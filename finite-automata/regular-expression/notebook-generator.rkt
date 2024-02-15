@@ -87,7 +87,7 @@
                 'outputs (list)
                 'source (list (string-append "(automaton-correction resposta"
                                              (number->string num)
-                                             " (re-to-dfa "
+                                             " ((compose car dfa-rename-states re-sigma-to-dfa) (list #\\0 #\\1) "
                                              (re-as-string (hash-ref question 're)) "))")))))
 
 (define (generate-cells number-easy number-medium number-hard [re-length MAX-RE-LENGTH])
@@ -96,7 +96,7 @@
                                 'execution_count 0
                                 'metadata (hasheq 'vscode (hasheq 'languageId "racket"))
                                 'outputs (list)
-                                'source (list "(require \"re.rkt\" \"re-to-dfa.rkt\" \"../dfa/automaton-correction.rkt\" \"../dfa/image-builder.rkt\")")))
+                                'source (list "(require \"re.rkt\" \"re-to-dfa.rkt\" \"../dfa/automaton-correction.rkt\" \"../dfa/image-builder.rkt\" \"../dfa/core.rkt\" \"../fa.rkt\")")))
   (flatten (list require-setup (map re->cell
                                     questions-list
                                     (build-list (length questions-list) (lambda (x) (add1 x)))))))
