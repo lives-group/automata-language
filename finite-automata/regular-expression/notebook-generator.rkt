@@ -1,9 +1,6 @@
 #lang racket
 
 (require json
-         latex-utils/scribble/unmap
-         latex-utils/scribble/math
-         latex-utils/scribble/utils
          "../dfa/core.rkt"
          "re.rkt"
          "re-generator.rkt"
@@ -96,10 +93,10 @@
                                 'execution_count 0
                                 'metadata (hasheq 'vscode (hasheq 'languageId "racket"))
                                 'outputs (list)
-                                'source (list "(require \"re.rkt\" \"re-to-dfa.rkt\" \"../dfa/automaton-correction.rkt\" \"../dfa/image-builder.rkt\" \"../dfa/core.rkt\" \"../fa.rkt\")")))
+                                'source (list "#lang iracket/lang #:require racket" "(require \"re.rkt\" \"re-to-dfa.rkt\" \"../dfa/automaton-correction.rkt\" \"../dfa/image-builder.rkt\" \"../dfa/core.rkt\" \"../fa.rkt\")")))
   (flatten (list require-setup (map re->cell
                                     questions-list
-                                    (build-list (length questions-list) (lambda (x) (add1 x)))))))
+                                    (range 1 (add1 (length questions-list)))))))
 
 (define (generate-metadata)
   (hasheq 'kernelspec (hasheq 'display_name "Racket"
