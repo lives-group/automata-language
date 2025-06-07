@@ -10,9 +10,7 @@
          "../nfa/image-builder.rkt"
          "question-generator.rkt")
 
-(provide create-notebook
-         generate-json
-         generate-notebook)
+(provide create-notebook)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
