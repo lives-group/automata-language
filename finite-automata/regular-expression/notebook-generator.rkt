@@ -10,7 +10,8 @@
          "../nfa/image-builder.rkt"
          "question-generator.rkt")
 
-#;(provide generate-json
+(provide create-notebook
+         generate-json
          generate-notebook)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -120,10 +121,5 @@
   (write-json notebook out)
   (close-output-port out))
 
-
-
-
-
-
-
-
+(define (create-notebook number-easy number-medium number-hard filename)
+  (save-notebook (generate-notebook number-easy number-medium number-hard) filename))
