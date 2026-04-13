@@ -419,14 +419,55 @@
 (define (stop population fitness-function current-generation)
   (or (= (population-fitness fitness-function population) 0) (= current-generation MAX-GENERATIONS)))
 
-(define (gen population fitness-function [current-generation 0] [return-generation #f])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Fitness sharing
 
-  ;(display "Step: ") (display current-generation) #;(display population) (display "\n")
-  ;(for-each pprint-re population)
+; profile = [n_union, n_concat, n_kleene, n_intersection, n_complement]
+(define (operator-profile re)
+  (match re
+    [(EMPTY)             '(0 0 0 0 0)]
+    [(LAMBDA)            '(0 0 0 0 0)]
+    [(SYMBOL _)          '(0 0 0 0 0)]
+    [(UNION r s)         (map + '(1 0 0 0 0) (operator-profile r) (operator-profile s))]
+    [(CONCATENATION r s) (map + '(0 1 0 0 0) (operator-profile r) (operator-profile s))]
+    [(KLEENE-CLOSURE r)  (map + '(0 0 1 0 0) (operator-profile r))]
+    [(INTERSECTION r s)  (map + '(0 0 0 1 0) (operator-profile r) (operator-profile s))]
+    [(COMPLEMENT r)      (map + '(0 0 0 0 1) (operator-profile r))]))
 
+(define (profile-distance re1 re2)
+  (define p1 (operator-profile re1))
+  (define p2 (operator-profile re2))
+  (sqrt
+   (apply + (map
+             (lambda (x y) (expt (- x y) 2))
+             p1 p2))))
+
+(define (structural-diversity-bonus re population threshold)
+  (define population-without-re (remove (curry eq? re) population))
+  (define dists (map (curry profile-distance re) population-without-re))
+  (define min-dist (apply min dists))
+  (if (> min-dist threshold)
+      -1 ;; bônus: reduz o custo
+      0))
+#|
+gen_com_perfil(population, base_fitness, threshold):
+  enquanto não parar:
+    // cria função de fitness que incorpora o bônus estrutural
+    fitness_com_perfil = função(re):
+      retorna base_fitness(re) + structural_diversity_bonus(re, population, threshold)
+
+    population = new_population(population, fitness_com_perfil)
+|#
+(define (gen-with-profile population fitness-function threshold [current-generation 0] [return-generation #f])
+  (define (fitness-profile re) (+ (fitness-function re) (structural-diversity-bonus re population threshold)))
+  
   (if (stop population fitness-function current-generation)
       (if return-generation (list population current-generation) population)
-      (gen (new-population population fitness-function) fitness-function (add1 current-generation) return-generation)))
+      (gen-with-profile (new-population population fitness-profile)
+           fitness-function
+           threshold
+           (add1 current-generation)
+           return-generation)))
 
 
 
@@ -439,7 +480,7 @@
 
 
 
-(define (generate-questions number-easy number-medium number-hard [re-length MAX-RE-LENGTH])
+(define (generate-questions number-easy number-medium number-hard threshold [re-length MAX-RE-LENGTH])
   #;(let* ([easy-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-easy 0)]
          [medium-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-medium 0)]
          [hard-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-hard 0)])
@@ -447,9 +488,9 @@
               (take medium-questions number-medium)
               (take hard-questions number-hard)))
   (append
-    (build-list number-easy (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-easy) objective-easy)))
-    (build-list number-medium (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-medium) objective-medium)))
-    (build-list number-hard (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-hard) objective-hard)))))
+    (build-list number-easy (lambda (x) (best-individual (gen-with-profile (initial-population NUMBER-QUESTIONS re-length) objective-easy threshold) objective-easy)))
+    (build-list number-medium (lambda (x) (best-individual (gen-with-profile (initial-population NUMBER-QUESTIONS re-length) objective-medium threshold) objective-medium)))
+    (build-list number-hard (lambda (x) (best-individual (gen-with-profile (initial-population NUMBER-QUESTIONS re-length) objective-hard threshold) objective-hard)))))
 
 
 
@@ -465,10 +506,10 @@
   (define states-population (map number-states population))
   (mean states-population))
 
-(define (run-100-tests fitness-function)
+(define (run-100-tests fitness-function threshold)
   (define resultados (build-list 100
               (lambda (x)
-                (let* ([result (gen (initial-population NUMBER-QUESTIONS 5) fitness-function 0 #t)])
+                (let* ([result (gen-with-profile (initial-population NUMBER-QUESTIONS 5) fitness-function threshold 0 #t)])
                   ;(list (media-individuos (first result)) (second result))
                   (list (map number-states (first result)) (second result))
                   ))))
@@ -524,12 +565,12 @@
   (display "\nRE mutada:\n")
   (pprint-re nova))
 
-(define (test-gen fitness-function [initial-population-size 10] [re-size 5] [return-generation #f])
+(define (test-gen-with-profile fitness-function threshold [initial-population-size 10] [re-size 5] [return-generation #f])
   (let*
-      ([result (gen (initial-population initial-population-size re-size) fitness-function 0 return-generation)])
+      ([result (gen-with-profile (initial-population initial-population-size re-size) fitness-function threshold 0 return-generation)])
     (map list
-         #;(map (compose re->string rewrite-re) result)
-         (map re->string result)
+         (map (compose re->string rewrite-re) result)
+         #;(map re->string result)
          (map number-states result)
          #;(map number-transitions result)
          #;(map razao-transicoes-estados result)

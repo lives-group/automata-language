@@ -25,15 +25,7 @@
     (cons (VARIABLE "S") (list (SYMBOL "1") (VARIABLE "S")))  ;; S -> 1 S
     (cons (VARIABLE "S") (list (SYMBOL "1") (VARIABLE "A")))  ;; S -> 1 A
     (cons (VARIABLE "A") (list (SYMBOL "1") (VARIABLE "B")))  ;; A -> 1 B
-    (cons (VARIABLE "B") (list (LAMBDA))))  ;; B -> ε
-   #;(list
-    (cons (VARIABLE "S") (list (SYMBOL "0") (VARIABLE "S")))  ;; S -> 0 S
-    (cons (VARIABLE "S") (list (SYMBOL "1") (VARIABLE "A")))  ;; S -> 1 S
-    (cons (VARIABLE "A") (list (SYMBOL "0") (VARIABLE "S")))  ;; S -> 0 S
-    (cons (VARIABLE "A") (list (SYMBOL "1") (VARIABLE "B")))  ;; S -> 1 S
-    (cons (VARIABLE "B") (list (SYMBOL "0") (VARIABLE "S")))  ;; S -> 0 S
-    (cons (VARIABLE "B") (list (SYMBOL "1") (VARIABLE "B")))  ;; S -> 1 S
-    (cons (VARIABLE "B") (list (LAMBDA))))  ;; B -> ε
+    (cons (VARIABLE "B") (list (LAMBDA))))  ;; B -> λ
    'S))  ;; start
 
 ;; Helper functions for regular-grammar?

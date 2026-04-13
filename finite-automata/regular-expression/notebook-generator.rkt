@@ -8,7 +8,9 @@
          "../dfa/image-builder.rkt"
          "re-to-nfa.rkt"
          "../nfa/image-builder.rkt"
-         "question-generator.rkt")
+         "re-generator.rkt"
+         "question-generator.rkt"
+         rackcheck)
 
 #;(provide generate-json
          generate-notebook)
@@ -47,6 +49,32 @@
           ;'state-table (second automata)
           ))
 
+#;
+;; Totalmente aleatório
+(define (re-list->jsexpr number-easy number-medium number-hard [re-length MAX-RE-LENGTH])
+  (define questions (sample (gen:re re-length) (+ number-easy number-medium number-hard)))
+  (map re->json questions))
+
+
+(define (generate-one objective [re-length MAX-RE-LENGTH] [max-tries 10])
+  (define (generate tries)
+    (if (= 0 tries)
+        (error "Limite máximo de tentativas")
+        (let ([question (new-re re-length)])
+          (if (= 0 (objective question))
+              question
+              (generate (- tries 1))))))
+  (generate max-tries))
+#;
+;; Com timeout
+(define (re-list->jsexpr number-easy number-medium number-hard [re-length MAX-RE-LENGTH])
+  (define easy   (build-list number-easy   (lambda (_) (generate-one objective-easy   re-length))))
+  (define medium (build-list number-medium (lambda (_) (generate-one objective-medium re-length))))
+  (define hard   (build-list number-hard   (lambda (_) (generate-one objective-hard   re-length))))
+  (define questions (append easy medium hard))
+  (map re->json questions))
+
+;; Usando o algoritmo genético
 (define (re-list->jsexpr number-easy number-medium number-hard [re-length MAX-RE-LENGTH])
   (define questions (generate-questions number-easy number-medium number-hard re-length))
   (map re->json questions))

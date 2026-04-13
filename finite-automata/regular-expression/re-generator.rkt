@@ -7,19 +7,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define um (SYMBOL #\1))
-(define zero (SYMBOL #\0))
-(define a (SYMBOL #\a))
-(define b (SYMBOL #\b))
-(define c (SYMBOL #\c))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define gen:symbol
-  #;(gen:one-of (list (EMPTY) (LAMBDA) a b c um zero))
-  #;(gen:one-of (list (EMPTY) (LAMBDA) um zero))
-  (gen:one-of (list (LAMBDA) um zero))
-  #;(gen:one-of (list um zero)))
+(define default-sigma (list (LAMBDA)
+                            (SYMBOL #\0)
+                            (SYMBOL #\1)))
 
 #| valores iniciais
 união: 40
@@ -36,9 +26,9 @@ concatenação: 40
 kleene: 20
 complemento: 10
 |#
-(define (gen:re h)
+(define (gen:re h [sigma default-sigma])
   (if (<= h 1)
-      gen:symbol
+      (gen:one-of sigma)
       (let* ([h2 (sub1 h)])
         (gen:frequency `((25 . ,(gen:let ([r (gen:re h2)]
                                           [s (gen:re h2)])

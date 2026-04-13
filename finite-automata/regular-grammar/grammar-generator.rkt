@@ -10,8 +10,8 @@
 (define (possible-vars quant)
   (build-list quant (lambda (x) (string->symbol (string-append "V" (number->string x))))))
 
-(define (gen:variables max-var)
-  (gen:let ([num-vars (gen:integer-in 1 max-var)])
+(define (gen:variables max-var [min-var 1])
+  (gen:let ([num-vars (gen:integer-in min-var max-var)])
            (gen:const (take (possible-vars max-var) num-vars))))
 
 
@@ -74,24 +74,10 @@
                      (gen:const (cons rule rest))
                      rest)))))
 
-#;
-(define (gen:random-rule variables alphabet)
-  (gen:let ([lhs (gen:one-of variables)]
-            [rhs (gen:frequency
-                  `((3 . ,(gen:let ([term (gen:one-of alphabet)] ; transition
-                                    [var  (gen:one-of variables)])
-                                   (gen:const (list (SYMBOL (symbol->string term))
-                                                    (VARIABLE (symbol->string var))))))
-                    (1 . ,(gen:let ([term (gen:one-of alphabet)]) ; symbol
-                                   (gen:const (list (SYMBOL (symbol->string term))))))
-                    (1 . ,(gen:const (list (LAMBDA))))))]) ; lambda
-           (gen:const (cons (VARIABLE (symbol->string lhs)) rhs))))
-
 (define (gen:random-rule variables alphabet)
   (gen:let ([lhs (gen:one-of variables)]
             [sym (gen:one-of alphabet)] 
-            [var (gen:one-of variables)]
-            #;[var (gen:one-of (member lhs (reverse variables)))])
+            [var (gen:one-of variables)])
            (gen:const (cons (VARIABLE (symbol->string lhs))
                             (list (SYMBOL (symbol->string sym))
                                   (VARIABLE (symbol->string var)))))))
@@ -103,8 +89,8 @@
                 [rest  (gen:random-rules variables alphabet (- num-rules 1))])
                (gen:const (cons rule rest)))))
 
-(define (gen:grammar max-var max-rule alphabet)
-  (gen:let ([variables (gen:variables max-var)]
+(define (gen:grammar max-var max-rule alphabet [min-var 1])
+  (gen:let ([variables (gen:variables max-var min-var)]
             [num-rules (gen:integer-in 1 max-rule)]
             [transitions (gen:transitions variables alphabet)]
             [terminals (gen:terminal-rules variables alphabet)]

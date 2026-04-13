@@ -38,17 +38,32 @@
               finals)]
         [else finals]))
 
+(define (merge-transitions transitions)
+  (define (merge-one t acc)
+    (define key (car t))
+    (define val (cdr t))
+    (define existing (assoc key acc))
+    (if existing
+        (map (lambda (e)
+               (if (equal? (car e) key)
+                   (cons key (remove-duplicates (append (cdr e) val)))
+                   e))
+             acc)
+        (cons t acc)))
+  (foldl merge-one '() transitions))
+
 (define (grammar->nfa grammar)
   (unless (regular-grammar? grammar)
     (raise-argument-error 'grammar-to-nfa "Regular grammar" grammar))
-  
+
   (define variables (grammar-variables grammar))
   (define alphabet (grammar-alphabet grammar))
   (define rules (grammar-rules grammar))
   (define start (grammar-start grammar))
 
   (define transitions
-    (filter (negate empty?) (map rule->transition rules)))
+    (merge-transitions
+     (filter (negate empty?) (map rule->transition rules))))
   (define finals (foldl accepting-states '() rules))
 
   (define accept-needed?

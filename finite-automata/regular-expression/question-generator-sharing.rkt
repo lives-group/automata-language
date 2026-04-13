@@ -419,19 +419,85 @@
 (define (stop population fitness-function current-generation)
   (or (= (population-fitness fitness-function population) 0) (= current-generation MAX-GENERATIONS)))
 
-(define (gen population fitness-function [current-generation 0] [return-generation #f])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Fitness sharing
 
-  ;(display "Step: ") (display current-generation) #;(display population) (display "\n")
-  ;(for-each pprint-re population)
+(define (acceptance-vector re sample)
+  ;; string-derivative é a função equivalente ao re_accepts
+  (map (lambda (string) (string-derivative (string->list string) re)) sample))
+
+(define (behavioral-distance re1 re2 sample)
+  (define v1 (acceptance-vector re1 sample))
+  (define v2 (acceptance-vector re2 sample))
+  (define divergences (count (compose not eq?) v1 v2))
+  (/ divergences (length sample)))
+
+(define (niche-count re population sample sigma-share)
+  (define (niche re sample other total)
+    (define d (behavioral-distance re other sample))
+    (if (< d sigma-share)
+        (+ total (- 1 (/ d sigma-share)))
+        total))
+  (foldl (curry niche re sample) 0 population))
+
+(define (shared-fitness re population base-fitness sample sigma-share)
+  (define base (base-fitness re))
+  (define nc   (niche-count re population sample sigma-share))
+  (/ base (max 1 nc)))
+
+
+; Da forma como a função
+(define (shortest-accepted-string dfa sigma)
+  (define start         (dfa-start dfa))
+  (define states        (dfa-states dfa))
+  (define delta         (dfa-delta dfa))
+  (define final         (dfa-final dfa))
+  
+  (define (explore queue visited)
+    (if (empty? queue)
+        #f
+        (let* ([head  (first queue)]
+               [tail  (rest queue)]
+               [state (car head)]
+               [word  (cdr head)])
+          (if (member state final)
+              word
+              (let* ([transitions (map (lambda (sym) (assoc (cons state sym) delta) sigma))] ; all transitions from state
+                     [transitions2 (remove empty? transitions)] ; remove empty transitions
+                     [transitions3 (remove (lambda (transition) ; remove transitions to states already visited
+                                             (member (cdr transition) visited))
+                                           transitions2)]
+                     [visited-states (map cdr transitions3)] ; list of new visited states, cdr of remaining transitions 
+                     [new-pairs  (map (lambda (transition) ; transforms each remaining transitions into (next, word + [symbol])
+                                        (cons
+                                         (cdr transition)
+                                         (append word (cdr (car transition)))))
+                                      transitions3)])
+                (explore (append tail new-pairs) (append visited visited-states))))))) 
+
+  (explore (list (cons start '())) (list start))) ; starts exploration with queue = [(start, [])] and visited = [start]
+
+(define (adaptive-sample population sigma n-random max-len)
+  (define random-strings (sample (gen:string (gen:one-of sigma) #:max-length max-len) n-random))
+  (define positive-examples (filter-map (lambda (re) (compose shortest-accepted-string re-to-dfa) re sigma) population))
+  
+  (remove-duplicates (append random-strings (map list->string positive-examples))))
+
+(define (gen-with-sharing population fitness-function sigma sigma-share [current-generation 0] [return-generation #f])
+  (define n-random 20)
+  (define max-len 4)
+
+  (define sample (adaptive-sample population sigma n-random max-len))
+  (define (shared-fitness-function re) (shared-fitness re population fitness-function sample sigma-share))
 
   (if (stop population fitness-function current-generation)
       (if return-generation (list population current-generation) population)
-      (gen (new-population population fitness-function) fitness-function (add1 current-generation) return-generation)))
-
-
-
-
-
+      (gen-with-sharing (new-population population shared-fitness-function)
+                        fitness-function
+                        sigma
+                        sigma-share
+                        (add1 current-generation)
+                        return-generation)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -439,7 +505,7 @@
 
 
 
-(define (generate-questions number-easy number-medium number-hard [re-length MAX-RE-LENGTH])
+(define (generate-questions number-easy number-medium number-hard [sigma-share 0.3] [re-length MAX-RE-LENGTH])
   #;(let* ([easy-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-easy 0)]
          [medium-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-medium 0)]
          [hard-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-hard 0)])
@@ -447,9 +513,9 @@
               (take medium-questions number-medium)
               (take hard-questions number-hard)))
   (append
-    (build-list number-easy (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-easy) objective-easy)))
-    (build-list number-medium (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-medium) objective-medium)))
-    (build-list number-hard (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-hard) objective-hard)))))
+    (build-list number-easy (lambda (x) (best-individual (gen-with-sharing (initial-population NUMBER-QUESTIONS re-length) objective-easy SIGMA sigma-share) objective-easy)))
+    (build-list number-medium (lambda (x) (best-individual (gen-with-sharing (initial-population NUMBER-QUESTIONS re-length) objective-medium SIGMA sigma-share) objective-medium)))
+    (build-list number-hard (lambda (x) (best-individual (gen-with-sharing (initial-population NUMBER-QUESTIONS re-length) objective-hard SIGMA sigma-share) objective-hard)))))
 
 
 
@@ -465,10 +531,10 @@
   (define states-population (map number-states population))
   (mean states-population))
 
-(define (run-100-tests fitness-function)
+(define (run-100-tests fitness-function [sigma-share 0.3] )
   (define resultados (build-list 100
               (lambda (x)
-                (let* ([result (gen (initial-population NUMBER-QUESTIONS 5) fitness-function 0 #t)])
+                (let* ([result (gen-with-sharing (initial-population NUMBER-QUESTIONS 5) fitness-function SIGMA sigma-share 0 #t)])
                   ;(list (media-individuos (first result)) (second result))
                   (list (map number-states (first result)) (second result))
                   ))))
@@ -524,12 +590,12 @@
   (display "\nRE mutada:\n")
   (pprint-re nova))
 
-(define (test-gen fitness-function [initial-population-size 10] [re-size 5] [return-generation #f])
+(define (test-gen-with-sharing fitness-function [sigma-share 0.3] [initial-population-size 10] [re-size 5] [return-generation #f])
   (let*
-      ([result (gen (initial-population initial-population-size re-size) fitness-function 0 return-generation)])
+      ([result (gen-with-sharing (initial-population initial-population-size re-size) fitness-function SIGMA sigma-share 0 return-generation)])
     (map list
-         #;(map (compose re->string rewrite-re) result)
-         (map re->string result)
+         (map (compose re->string rewrite-re) result)
+         #;(map re->string result)
          (map number-states result)
          #;(map number-transitions result)
          #;(map razao-transicoes-estados result)

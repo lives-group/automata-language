@@ -217,13 +217,6 @@
     [(UNION r s) (append (union-to-list r) (union-to-list s))]
     [any (list e)]))
 
-#;
-(define (simplify-union r)
-  (define s (remove* (list (EMPTY)) r))
-  (match (length s)
-    [0 (list (EMPTY))]
-    [any s]))
-
 (define (list-to-union l)
   (match l
     [(list) (EMPTY)]
@@ -236,12 +229,6 @@
   (match e
     [(INTERSECTION r s) (append (inter-to-list r) (inter-to-list s))]
     [any (list e)]))
-
-#;
-(define (simplify-inter r)
-  (if (member (EMPTY) r)
-      (list (EMPTY))
-      r))
 
 (define (list-to-inter l)
   (match l
@@ -256,15 +243,6 @@
     [(CONCATENATION r s) (append (concat-to-list r) (concat-to-list s))]
     [any (list e)]))
 
-#;
-(define (simplify-concat r)
-  (if (member (EMPTY) r)
-      (list (EMPTY))
-      (let ([s (remove* (list (LAMBDA)) r)])
-        (match (length s)
-          [0 (list (LAMBDA))]
-          [any s]))))
-
 (define (list-to-concat l)
   (match l
     [(list) (EMPTY)]
@@ -273,7 +251,6 @@
     [(cons x xs) (concat-regex x (list-to-concat xs))]))
 
 
-;; Como comparar regex?
 (define (regex-smaller? x y)
   (match (cons x y)
     [(cons (EMPTY) _) #f]

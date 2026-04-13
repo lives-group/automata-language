@@ -380,27 +380,87 @@
 
 
 
-;; método do torneio binário - pode repetir
-(define (torneio-escolhe-pai population fitness-function n)
-  (define positions (build-list n (lambda (x) (random (length population)))))
-  (define candidatos (map (lambda (p) (list-ref population p)) positions))
-  (best-individual candidatos fitness-function))
+;; features = [n_estados, densidade_transições, aceita_vazia]
+(define (dfa-features re sigma)
+  (define dfa (re-sigma-to-dfa re sigma))
+  (define n-estados (length (dfa-states dfa)))
+  (define accepts-empty (if (nullable? re) 1 0))
+  (list n-estados accepts-empty))
 
-(define (crossover-torneio population step fitness-function n) 
-  (define pai1 (torneio-escolhe-pai population fitness-function n))
-  (define pai2 (torneio-escolhe-pai (remove pai1 population) fitness-function n))
-  (define novo-par (if (< (random) CROSSOVER-RATE)
-                       #;(crossover pai1 pai2)
-                       #;(crossover2 pai1 pai2)
-                       (crossover-path pai1 pai2)
-                       (list pai1 pai2)))
+(define (feature-distance re1 re2)
+  (define f1 (dfa-features re1))
+  (define f2 (dfa-features re2))
+  (sqrt
+   (apply + (map
+             (lambda (x y) (expt (- x y) 2))
+             f1 f2))))
+
+
+;; Na seleção por torneio: dado empate no fitness base,
+;; escolher o candidato com maior crowding_distance
+(define (torneio-escolhe-pai-crowding population-with-dist fitness-function n)
+  (define positions (build-list n (lambda (x) (random (length population-with-dist)))))
+  (define candidates (map (lambda (p) (list-ref population-with-dist p)) positions))
+
+  (first (sort candidates
+               (lambda (item1 item2)
+                 (let ([re1      (car item1)]
+                       [dist-re1 (cdr item1)]
+                       [re2      (car item2)]
+                       [dist-re2 (cdr item2)])
+                   (or (< (fitness-function re1) (fitness-function re2))
+                       (and (= (fitness-function re1) (fitness-function re2))
+                            (> dist-re1 dist-re2))))))))
+
+(define (crowding-distance population objectives)
+  (define n (length population))
+  (define distances (make-vector n 0.0))
+
+  (for-each
+   (lambda (obj-fn)
+     (define indexed (map cons (build-list n values) population))
+     (define sorted
+       (sort indexed (lambda (a b) (< (obj-fn (cdr a)) (obj-fn (cdr b))))))
+     (define sorted-idx (map car sorted))
+
+     ;; bordas recebem distância infinita
+     (vector-set! distances (first sorted-idx) +inf.0)
+     (vector-set! distances (last  sorted-idx) +inf.0)
+
+     (define obj-vals (map (lambda (p) (obj-fn (cdr p))) sorted))
+     (define obj-min (first obj-vals))
+     (define obj-max (last  obj-vals))
+     (define range (- obj-max obj-min))
+
+     (when (> range 0)
+       (for ([k (in-range 1 (sub1 n))])
+         (define prev-obj (list-ref obj-vals (sub1 k)))
+         (define next-obj (list-ref obj-vals (add1 k)))
+         (define idx      (list-ref sorted-idx k))
+         (vector-set! distances idx
+                      (+ (vector-ref distances idx)
+                         (/ (- next-obj prev-obj) range))))))
+   objectives)
+
+  (vector->list distances))
+
+(define (crossover-torneio-crowding pop-com-dist step fitness-function n)
   (if (= step 0)
       (list)
-      (append novo-par (crossover-torneio population (sub1 step) fitness-function n))))
+      (let* ([pai1         (torneio-escolhe-pai-crowding pop-com-dist fitness-function n)]
+             [pop-sem-pai1 (remove pai1 pop-com-dist)]
+             [pai2         (torneio-escolhe-pai-crowding pop-sem-pai1 fitness-function n)]
+             [novo-par     (if (< (random) CROSSOVER-RATE)
+                               (crossover-path (car pai1) (car pai2))
+                               (list (car pai1) (car pai2)))])
+        (append novo-par
+                (crossover-torneio-crowding pop-com-dist (sub1 step) fitness-function n)))))
 
-(define (gen-torneio population fitness-function [n 2])
-  (mutate-population (crossover-torneio population (quotient (length population) 2) fitness-function n)))
-
+(define (gen-torneio-crowding population fitness-function objectives [n 2])
+  (define distances   (crowding-distance population objectives))
+  (define pop-com-dist (map cons population distances))
+  (mutate-population
+   (crossover-torneio-crowding pop-com-dist (quotient (length population) 2) fitness-function n)))
 
 
 
@@ -411,24 +471,35 @@
 
 
 
-(define (new-population population fitness-function)
-  #;(reproduct population fitness-function)
-  #;(gen-roleta population)
-  (gen-torneio population fitness-function))
+(define (bloat-ratio re)
+  (define syntactic (add1 (total-nodes re)))
+  (define semantic (number-states re))
+  (/ syntactic semantic))
+
+(define (objective-with-control re base-objective w)
+  (+ (base-objective re) (* w (bloat-ratio re))))
+
+
+(define (new-population population fitness-function objectives)
+  (gen-torneio-crowding population fitness-function objectives))
 
 (define (stop population fitness-function current-generation)
   (or (= (population-fitness fitness-function population) 0) (= current-generation MAX-GENERATIONS)))
 
-(define (gen population fitness-function [current-generation 0] [return-generation #f])
+(define (gen-with-crowding population fitness-function objectives w [current-generation 0] [return-generation #f])
 
-  ;(display "Step: ") (display current-generation) #;(display population) (display "\n")
-  ;(for-each pprint-re population)
+  (define (fitness-with-control re) (objective-with-control re fitness-function w))
 
   (if (stop population fitness-function current-generation)
       (if return-generation (list population current-generation) population)
-      (gen (new-population population fitness-function) fitness-function (add1 current-generation) return-generation)))
+      (gen-with-crowding (new-population population fitness-with-control objectives)
+           fitness-function
+           objectives
+           w
+           (add1 current-generation)
+           return-generation)))
 
-
+(define default-objectives (list bloat-ratio))
 
 
 
@@ -439,7 +510,7 @@
 
 
 
-(define (generate-questions number-easy number-medium number-hard [re-length MAX-RE-LENGTH])
+(define (generate-questions number-easy number-medium number-hard objectives w [re-length MAX-RE-LENGTH])
   #;(let* ([easy-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-easy 0)]
          [medium-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-medium 0)]
          [hard-questions (gen (initial-population NUMBER-QUESTIONS re-length) objective-hard 0)])
@@ -447,9 +518,9 @@
               (take medium-questions number-medium)
               (take hard-questions number-hard)))
   (append
-    (build-list number-easy (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-easy) objective-easy)))
-    (build-list number-medium (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-medium) objective-medium)))
-    (build-list number-hard (lambda (x) (best-individual (gen (initial-population NUMBER-QUESTIONS re-length) objective-hard) objective-hard)))))
+    (build-list number-easy (lambda (x) (best-individual (gen-with-crowding (initial-population NUMBER-QUESTIONS re-length) objective-easy objectives w) objective-easy)))
+    (build-list number-medium (lambda (x) (best-individual (gen-with-crowding (initial-population NUMBER-QUESTIONS re-length) objective-medium objectives w) objective-medium)))
+    (build-list number-hard (lambda (x) (best-individual (gen-with-crowding (initial-population NUMBER-QUESTIONS re-length) objective-hard objectives w) objective-hard)))))
 
 
 
@@ -465,10 +536,10 @@
   (define states-population (map number-states population))
   (mean states-population))
 
-(define (run-100-tests fitness-function)
+(define (run-100-tests fitness-function objectives [w 0.1])
   (define resultados (build-list 100
               (lambda (x)
-                (let* ([result (gen (initial-population NUMBER-QUESTIONS 5) fitness-function 0 #t)])
+                (let* ([result (gen-with-crowding (initial-population NUMBER-QUESTIONS 5) fitness-function objectives w 0 #t)])
                   ;(list (media-individuos (first result)) (second result))
                   (list (map number-states (first result)) (second result))
                   ))))
@@ -524,9 +595,9 @@
   (display "\nRE mutada:\n")
   (pprint-re nova))
 
-(define (test-gen fitness-function [initial-population-size 10] [re-size 5] [return-generation #f])
+(define (test-gen-with-crowding fitness-function objectives [w 0.1] [initial-population-size 10] [re-size 5] [return-generation #f])
   (let*
-      ([result (gen (initial-population initial-population-size re-size) fitness-function 0 return-generation)])
+      ([result (gen-with-crowding (initial-population initial-population-size re-size) fitness-function objectives w 0 return-generation)])
     (map list
          #;(map (compose re->string rewrite-re) result)
          (map re->string result)
@@ -536,9 +607,9 @@
          #;(map dfa-dot result))))
 
 
-(define (test-generate-questions n1 n2 n3 [re-size 5])
+(define (test-generate-questions n1 n2 n3 objectives [w 0.1] [re-size 5])
   (let*
-      ([result (map rewrite-re (generate-questions n1 n2 n3 re-size))])
+      ([result (map rewrite-re (generate-questions n1 n2 n3 objectives w re-size))])
     (map list
          (map (compose re->string rewrite-re) result)
          #;(map re->string result)

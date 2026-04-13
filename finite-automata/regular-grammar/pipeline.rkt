@@ -11,10 +11,10 @@
 
 (define alpha '(|0| |1|))
 
-(define (new-grammar max-var max-rule alphabet)
-  (first (sample (gen:grammar max-var max-rule alphabet) 1)))
+(define (new-grammar max-var max-rule alphabet [min-var 1])
+  (first (sample (gen:grammar max-var max-rule alphabet min-var) 1)))
 
-(define (test-grammar) (new-grammar 8 10 alpha))
+(define (test-grammar [min-var 1] [max-var 8] [max-rule 10]) (new-grammar max-var max-rule alpha min-var))
 
 (define (mk-pict grammar) ((compose nfa->pict grammar->nfa) grammar))
 
